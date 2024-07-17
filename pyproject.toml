@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "python-django-diploma"
+version = "0.1.0"
+description = "This is my python django diploma"
+authors = ["konstantin7297 <khromykh.kas@mail.ru>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+django = "4.2.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
