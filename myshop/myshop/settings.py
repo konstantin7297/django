@@ -105,9 +105,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# LOGIN_URL = reverse_lazy("", args=(str("myauth:sign-in"),))
-# LOGIN_REDIRECT_URL = reverse_lazy("", args=(str("shopapp:home"),))
-# LOGOUT_REDIRECT_URL = reverse_lazy("", args=(str("myauth:sign-in"),))
+LOGIN_URL = reverse_lazy("", args=(str("myauth:sign-in"),))
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = reverse_lazy("", args=(str("myauth:sign-in"),))
 
 
 # Internationalization
