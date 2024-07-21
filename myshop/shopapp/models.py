@@ -39,7 +39,7 @@ class Product(models.Model):
     description = models.TextField(max_length=500)
     freeDelivery = models.BooleanField(default=False)
     reviews = models.PositiveIntegerField(default=0)
-    rating = models.FloatField(null=True, default=models.SET_NULL)
+    rating = models.FloatField(null=True, default=0)
     tags = models.ManyToManyField(Tag, related_name="products")
 
     def __str__(self) -> str:
