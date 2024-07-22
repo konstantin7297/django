@@ -109,6 +109,8 @@ LOGIN_URL = reverse_lazy("", args=(str("myauth:sign-in"),))
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = reverse_lazy("", args=(str("myauth:sign-in"),))
 
+APPEND_SLASH = False
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.2/topics/i18n/

@@ -1,6 +1,7 @@
 import json
 
 from django.contrib.auth import login, logout, authenticate
+from django.contrib.auth.hashers import make_password
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.models import User
 from django.db import transaction
@@ -12,10 +13,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Profile
-from .forms import CreateUserForm
+from .forms import ProfileForm, CreateUserForm
+from .serializers import ProfileSerializer
 
 
 class SignInView(APIView):
+    """ Class for login user """
     def post(self, request: HttpRequest, *args, **kwargs) -> Response:
         data = json.loads(request.readline().decode())
 
@@ -52,56 +55,60 @@ class SignOutView(APIView, LoginRequiredMixin):
         return Response(status=status.HTTP_200_OK)
 
 
-class PaymentView(APIView):
+class PaymentView(APIView, LoginRequiredMixin):
     def post(self, request: Request, *args, **kwargs) -> Response:
         pass
 
 
 class ProfileView(APIView, LoginRequiredMixin):
-
+    """ Class for getting and update user profile information """
     def get(self, request: Request, *args, **kwargs) -> Response:
-        profile = Profile.objects.get(user=request.user.pk)
-        data = {
-            "fullName": profile.fullName,
-            "email": profile.email,
-            "phone": profile.phone,
-            "avatar": {
-                "src": profile.avatar.url,
-                "alt": profile.avatar.name
-            }
-        }
-        return Response(data=data, status=status.HTTP_200_OK)
+        user = User.objects.get(pk=request.user.pk)
+        serialized = ProfileSerializer(Profile.objects.get(user=user))
+        return Response(serialized.data, status=status.HTTP_200_OK)
 
     @transaction.atomic
     def post(self, request: Request, *args, **kwargs) -> Response:
+        user = User.objects.get(pk=request.user.pk)
         data = request.data
+        data["user"] = user
 
-        result = Profile.objects.update(
-            fullname=data["fullName"],
-            email=data["email"],
-            phone=data["phone"],
-            avatar=data["avatar"]
+        form = ProfileForm(data=data, instance=user.profile)
+        if form.is_valid():
+            form.save()
+            serialized = ProfileSerializer(Profile.objects.get(user=user))
+            return Response(serialized.data, status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ProfilePasswordView(UpdateAPIView, LoginRequiredMixin):
+    """ Class for changing user password """
+    @transaction.atomic
+    def post(self, request: Request, *args, **kwargs) -> Response:
+        user = authenticate(
+            request=request,
+            username=request.user.username,
+            password=request.data.get("currentPassword")
         )
-        return Response(status=status.HTTP_200_OK)
+        if user:
+            user.password = make_password(request.data.get("newPassword"))
+            user.save()
+            return Response(status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class ProfilePasswordView(UpdateAPIView):
+class ProfileAvatarView(UpdateAPIView, LoginRequiredMixin):
     @transaction.atomic
     def post(self, request: Request, *args, **kwargs) -> Response:
-        user = User.objects.get(username=request.user.username)
-        user.password = request.data["newPassword"]
-        user.save()
-        return Response(status=status.HTTP_200_OK)
-
-
-class ProfileAvatarView(UpdateAPIView):
-    @transaction.atomic
-    def post(self, request: Request, *args, **kwargs) -> Response:
-        form = ProfileAvatarForm(request.FILES)
-
-
-        user_profile = Profile.objects.get(user=request.user)
-        avatar = request.FILES.get("avatar")
-        user_profile.avatar = avatar
-        user_profile.save()
-        return Response(status=status.HTTP_200_OK)
+        user = User.objects.get(pk=request.user.pk)
+        data = {
+            "user": user,
+            "fullName": user.profile.fullName,
+            "email": user.profile.email,
+            "phone": user.profile.phone,
+        }
+        form = ProfileForm(data=data, files=request.FILES, instance=user.profile)
+        if form.is_valid():
+            form.save()
+            return Response(status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
