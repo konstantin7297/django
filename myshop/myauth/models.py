@@ -7,8 +7,8 @@ def path_to_avatar(instance: "Profile", filename: str) -> str:
 
 
 class Profile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    fullname = models.CharField(null=True, blank=True, max_length=50)
-    email = models.EmailField(null=True, blank=True)
-    phone = models.IntegerField(null=True, blank=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+    fullName = models.CharField(null=True, blank=True, max_length=50)
+    email = models.EmailField(null=True, blank=True, unique=True)
+    phone = models.IntegerField(null=True, blank=True, unique=True)
     avatar = models.ImageField(null=True, blank=True, upload_to=path_to_avatar)
