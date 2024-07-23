@@ -1,8 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from .models import Profile
-from .forms import ProfileForm
+from .models import Profile, Payment
 
 
 class UserInline(admin.TabularInline):
@@ -15,7 +14,6 @@ class CustomUserAdmin(UserAdmin):
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
-    add_form = ProfileForm
     list_display = ("user", "fullName", "email", "phone")
     list_display_links = ("fullName",)
     ordering = ("pk", "fullName")
@@ -34,3 +32,17 @@ class ProfileAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return Profile.objects.select_related("user")
+
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    list_display = ("number", "name", "month", "year", "code")
+    list_display_links = ("number", "name")
+    ordering = ("number", "name")
+    search_fields = ("number", "name")
+    fieldsets = [
+        ("Payment", {
+            "description": "Payment information",
+            "fields": ("number", "name", "month", "year", "code"),
+        })
+    ]
