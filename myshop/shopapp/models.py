@@ -32,11 +32,12 @@ class Tag(models.Model):
 
 class Product(models.Model):
     category = models.ForeignKey(Category, on_delete=models.PROTECT)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
+    price = models.DecimalField(max_digits=50, decimal_places=2)
     count = models.PositiveIntegerField(default=0)
     date = models.DateTimeField(default=timezone.now)
     title = models.CharField(max_length=50)
-    description = models.TextField(max_length=500)
+    description = models.TextField(max_length=200)
+    fullDescription = models.TextField(max_length=500)
     freeDelivery = models.BooleanField(default=False)
     reviews = models.PositiveIntegerField(default=0)
     rating = models.FloatField(null=True, default=0)

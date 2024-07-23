@@ -1,3 +1,4 @@
+from decimal import Decimal
 from math import ceil
 
 from django.db.models import Q
@@ -17,47 +18,43 @@ class CategoriesView(ListAPIView):
 
 
 class CatalogView(ListAPIView):
-    queryset = Product.objects.prefetch_related("tags", "orders", "images").select_related("category")
+    queryset = Product.objects.prefetch_related("tags", "images").select_related("category")
 
     def get(self, request: Request, *args, **kwargs):
-        """  Данные фильтрации для шаблона
-        {
-            # 'filter[name]': '',
-            # 'filter[minPrice]': '0',
-            # 'filter[maxPrice]': '50000',
-            # 'filter[freeDelivery]': 'false',
-            # 'filter[available]': 'true',
-            # 'currentPage': '1',
-            # 'sort': 'price',
-            # 'sortType': 'inc',
-            # 'limit': '20'
-        }
-        """
         data = request.query_params.dict()
-        start_row = max((int(data.get("currentPage", 1)) - 1) * int(data.get("limit", 20)), 1)
-        end_row = int(data.get("currentPage", 1)) * int(data.get("limit", 20)) + 1
+        page = int(data.get("currentPage", 1))
+        limit = int(data.get("limit", 20))
+        start_row = max((page - 1) * limit, 1)
+        end_row = page * limit + 1
 
         result = self.get_queryset().filter(
-            Q(name__icontains=data.get('filter[name]')) if data.get('filter[name]') else Q(),
-            price__gte=float(data.get('filter[minPrice]')),
-            price__lte=float(data.get('filter[maxPrice]')),
-            freeDelivery=bool(data.get('filter[freeDelivery]').capitalize()),
-            count__gt=0 if bool(data.get('filter[available]').capitalize()) else Q(),
-        ).order_by('price' if data.get('sortType') == 'inc' else '-price')[start_row:end_row]
+            Q(name__icontains=data.get('filter[name]', "")) if data.get('filter[name]', "") else Q(),
+            price__gte=Decimal(data.get('filter[minPrice]', 0)),
+            price__lte=Decimal(data.get('filter[maxPrice]', 9999999999)),
+            freeDelivery=bool(data.get('filter[freeDelivery]', "false").capitalize()),
+            count__gt=0 if bool(data.get('filter[available]', "true").capitalize()) else Q(),
+        ).order_by('price' if data.get('sortType', "dec") == 'inc' else '-price')[start_row:end_row]
 
         return Response({
             "items": ProductSerializer(result, many=True).data,
-            "currentPage": data.get("currentPage", 1),
-            "lastPage": ceil(len(result) / 20)
+            "currentPage": page,
+            "lastPage": ceil(len(result) / limit)
         })
 
 
 class ProductsPopularView(ListAPIView):
-    pass
+    """В каталог топ-товаров попадают восемь первых товаров по параметру «индекс
+    сортировки». Если же индекс сортировки совпадает, то товары сортируются
+    по количеству покупок."""
+    queryset = Product.objects.prefetch_related("tags", "images").select_related("category")[:8]
+    serializer_class = ProductSerializer
 
 
 class ProductsLimitedView(ListAPIView):
-    pass
+    """В блок «Ограниченный тираж» попадают до 16 товаров с галочкой
+    «ограниченный тираж». Отображаются эти товары в виде слайдера."""
+    queryset = Product.objects.prefetch_related("tags", "images").select_related("category")[:16]
+    serializer_class = ProductSerializer
 
 
 class ProductReviewView(APIView):
@@ -67,7 +64,8 @@ class ProductReviewView(APIView):
 
 class ProductByIdView(APIView):
     def get(self, request, *args, **kwargs):
-        pass
+        product = Product.objects.get(pk=kwargs.get("id"))
+        return Response(ProductSerializer(product).data)
 
 
 class OrdersView(APIView):

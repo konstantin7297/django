@@ -16,7 +16,7 @@ class Migration(migrations.Migration):
             name='Product',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('price', models.DecimalField(decimal_places=2, max_digits=10)),
+                ('price', models.DecimalField(decimal_places=2, max_digits=50)),
                 ('count', models.PositiveIntegerField(default=0)),
                 ('date', models.DateTimeField(default=django.utils.timezone.now)),
                 ('title', models.CharField(max_length=50)),
