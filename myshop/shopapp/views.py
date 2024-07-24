@@ -1,23 +1,35 @@
 from decimal import Decimal
 from math import ceil
 
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import Q, Avg
 from django.http import HttpRequest
+from rest_framework import status
 from rest_framework.generics import ListAPIView
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Category, Product
-from .serializers import CategorySerializer, ProductSerializer
+from .forms import ReviewForm
+from .models import Category, Tag, Product, Review, Order
+from .serializers import (
+    CategorySerializer,
+    TagSerializer,
+    FullProductSerializer,
+    ReviewSerializer,
+    ProductSerializer,
+    OrderSerializer,
+)
 
 
 class CategoriesView(ListAPIView):
-    queryset = Category.objects.prefetch_related("subcategories").all()
+    """ View for listing all categories """
+    queryset = Category.objects.prefetch_related("subcategories")
     serializer_class = CategorySerializer
 
 
 class CatalogView(ListAPIView):
+    """ View for listing filtered products """
     queryset = Product.objects.prefetch_related("tags", "images").select_related("category")
 
     def get(self, request: Request, *args, **kwargs):
@@ -28,7 +40,7 @@ class CatalogView(ListAPIView):
         end_row = page * limit + 1
 
         result = self.get_queryset().filter(
-            Q(name__icontains=data.get('filter[name]', "")) if data.get('filter[name]', "") else Q(),
+            Q(name__icontains=data.get('filter[name]')) if data.get('filter[name]') else Q(),
             price__gte=Decimal(data.get('filter[minPrice]', 0)),
             price__lte=Decimal(data.get('filter[maxPrice]', 9999999999)),
             freeDelivery=bool(data.get('filter[freeDelivery]', "false").capitalize()),
@@ -42,67 +54,112 @@ class CatalogView(ListAPIView):
         })
 
 
-class ProductsPopularView(ListAPIView):
-    """В каталог топ-товаров попадают восемь первых товаров по параметру «индекс
-    сортировки». Если же индекс сортировки совпадает, то товары сортируются
-    по количеству покупок."""
-    queryset = Product.objects.prefetch_related("tags", "images").select_related("category")[:8]
-    serializer_class = ProductSerializer
+# class ProductsPopularView(ListAPIView):
+#     """В каталог топ-товаров попадают восемь первых товаров по параметру «индекс
+#     сортировки». Если же индекс сортировки совпадает, то товары сортируются
+#     по количеству покупок."""
+#     queryset = Product.objects.prefetch_related("tags", "images").select_related("category")[:8]
+#     # serializer_class = ProductSerializer
 
 
-class ProductsLimitedView(ListAPIView):
-    """В блок «Ограниченный тираж» попадают до 16 товаров с галочкой
-    «ограниченный тираж». Отображаются эти товары в виде слайдера."""
-    queryset = Product.objects.prefetch_related("tags", "images").select_related("category")[:16]
-    serializer_class = ProductSerializer
+# class ProductsLimitedView(ListAPIView):
+#     """В блок «Ограниченный тираж» попадают до 16 товаров с галочкой
+#     «ограниченный тираж». Отображаются эти товары в виде слайдера."""
+#     queryset = Product.objects.prefetch_related("tags", "images").select_related("category")[:16]
+#     # serializer_class = ProductSerializer
 
 
 class ProductReviewView(APIView):
+    """ View for posting reviews for a product """
+    @transaction.atomic
     def post(self, request, *args, **kwargs):
-        pass
+        product = Product.objects.get(pk=kwargs.get("id"))
+        data = request.data
+        data["product"] = product
+
+        form = ReviewForm(data=data)
+        if form.is_valid():
+            form.save()
+
+            rating = product.reviews.aggregate(Avg("rate"))
+            product.rating = round(rating["rate__avg"], 1)
+            product.save()
+
+            return Response(ReviewSerializer(
+                Review.objects.filter(product__id=kwargs.get("id")), many=True
+            ).data)
+        return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ProductByIdView(APIView):
+    """ View for getting a full product information by id """
     def get(self, request, *args, **kwargs):
-        product = Product.objects.get(pk=kwargs.get("id"))
-        return Response(ProductSerializer(product).data)
+        product = Product.objects.prefetch_related(
+            "images", "tags", "reviews", "specifications"
+        ).get(pk=kwargs.get("id"))
+
+        if product:
+            return Response(FullProductSerializer(product).data)
+        return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class OrdersView(APIView):
+    """ View for main operation with orders """
     def get(self, request, *args, **kwargs):
-        pass
+        orders = Order.objects.prefetch_related("products").all()
+        return Response(OrderSerializer(orders, many=True).data)
 
-    def post(self, request, *args, **kwargs):
-        pass
-
-
-class OrdersByIdView(APIView):
-    def get(self, request, *args, **kwargs):
-        pass
-
-    def post(self, request, *args, **kwargs):
-        pass
-
-
-class SalesView(ListAPIView):
-    pass
+    @transaction.atomic
+    def post(self, request: Request, *args, **kwargs):
+        order = Order.objects.create()
+        order.save()
+        products = request.data
+        for product in products:
+            serializer = ProductSerializer(data=product)
+            if serializer.is_valid():
+                print(2, serializer.save())
+            # order.products.add(product)
+        return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class BannersView(ListAPIView):
-    pass
+# class OrdersByIdView(APIView):
+#     def get(self, request, *args, **kwargs):
+#         pass
+#
+#     @transaction.atomic
+#     def post(self, request, *args, **kwargs):
+#         pass
 
 
-class BasketView(APIView):
-    def get(self, request, *args, **kwargs):
-        return Response("")
+# class SalesView(ListAPIView):
+#     pass
 
-    def post(self, request, *args, **kwargs):
-        pass
 
-    def delete(self, request, *args, **kwargs):
-        pass
+# class BannersView(ListAPIView):
+#     pass
+
+
+# class BasketView(APIView):
+#     def get(self, request, *args, **kwargs):
+#         pass
+#
+#     @transaction.atomic
+#     def post(self, request, *args, **kwargs):
+#         pass
+#
+#     @transaction.atomic
+#     def delete(self, request, *args, **kwargs):
+#         pass
 
 
 class TagsView(ListAPIView):
+    """ View for listing all tags by category """
+    queryset = Tag.objects
+
     def get(self, request, *args, **kwargs):
-        return Response("")
+        category = request.query_params.dict().get("category")
+        if category:
+            return Response(TagSerializer(
+                self.get_queryset().filter(category__id=category), many=True
+            ).data)
+        return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
