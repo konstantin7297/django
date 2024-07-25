@@ -19,10 +19,16 @@ from .serializers import ProfileSerializer
 
 class SignInView(APIView):
     """ Class for login user """
-    def post(self, request: HttpRequest, *args, **kwargs) -> Response:
+    @staticmethod
+    def post(request: HttpRequest, *args, **kwargs) -> Response:
         data = json.loads(request.readline().decode())
 
-        user = authenticate(request=request, username=data.get("username"), password=data.get("password"))
+        user = authenticate(
+            request=request,
+            username=data.get("username"),
+            password=data.get("password")
+        )
+
         if user:
             login(request=request, user=user)
             return Response(status=status.HTTP_200_OK)
@@ -31,8 +37,9 @@ class SignInView(APIView):
 
 class SignUpView(CreateAPIView):
     """ Class for registration user """
+    @staticmethod
     @transaction.atomic
-    def post(self, request: HttpRequest, *args, **kwargs) -> Response:
+    def post(request: HttpRequest, *args, **kwargs) -> Response:
         data = json.loads(request.readline().decode())
         form = CreateUserForm(data={
             "first_name": data.get("name"),
@@ -41,34 +48,37 @@ class SignUpView(CreateAPIView):
         })
 
         if form.is_valid():
+
             user = User.objects.create_user(**form.cleaned_data)
             Profile.objects.get_or_create(user=user)
             login(request=request, user=user)
             return Response(status=status.HTTP_200_OK)
+
         return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class SignOutView(APIView, LoginRequiredMixin):
     """ Class for logout user """
-    def post(self, request: HttpRequest, *args, **kwargs) -> Response:
+    @staticmethod
+    def post(request: HttpRequest, *args, **kwargs) -> Response:
         logout(request)
         return Response(status=status.HTTP_200_OK)
 
 
-class PaymentView(APIView, LoginRequiredMixin):
-    def post(self, request: Request, *args, **kwargs) -> Response:
-        pass
-
-
 class ProfileView(APIView, LoginRequiredMixin):
     """ Class for getting and update user profile information """
-    def get(self, request: Request, *args, **kwargs) -> Response:
-        user = User.objects.get(pk=request.user.pk)
-        serialized = ProfileSerializer(Profile.objects.get(user=user))
-        return Response(serialized.data, status=status.HTTP_200_OK)
+    @staticmethod
+    def get(request: Request, *args, **kwargs) -> Response:
+        return Response(
+            data=ProfileSerializer(
+                Profile.objects.get(user=User.objects.get(pk=request.user.pk))
+            ).data,
+            status=status.HTTP_200_OK
+        )
 
+    @staticmethod
     @transaction.atomic
-    def post(self, request: Request, *args, **kwargs) -> Response:
+    def post(request: Request, *args, **kwargs) -> Response:
         user = User.objects.get(pk=request.user.pk)
         data = request.data
         data["user"] = user
@@ -76,20 +86,26 @@ class ProfileView(APIView, LoginRequiredMixin):
         form = ProfileForm(data=data, instance=user.profile)
         if form.is_valid():
             form.save()
-            serialized = ProfileSerializer(Profile.objects.get(user=user))
-            return Response(serialized.data, status=status.HTTP_200_OK)
+
+            return Response(
+                data=ProfileSerializer(Profile.objects.get(user=user)).data,
+                status=status.HTTP_200_OK
+            )
+
         return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ProfilePasswordView(UpdateAPIView, LoginRequiredMixin):
     """ Class for changing user password """
+    @staticmethod
     @transaction.atomic
-    def post(self, request: Request, *args, **kwargs) -> Response:
+    def post(request: Request, *args, **kwargs) -> Response:
         user = authenticate(
             request=request,
             username=request.user.username,
             password=request.data.get("currentPassword")
         )
+
         if user:
             user.password = make_password(request.data.get("newPassword"))
             user.save()
@@ -98,8 +114,10 @@ class ProfilePasswordView(UpdateAPIView, LoginRequiredMixin):
 
 
 class ProfileAvatarView(UpdateAPIView, LoginRequiredMixin):
+    """ Class for updating user avatar """
+    @staticmethod
     @transaction.atomic
-    def post(self, request: Request, *args, **kwargs) -> Response:
+    def post(request: Request, *args, **kwargs) -> Response:
         user = User.objects.get(pk=request.user.pk)
         data = {
             "user": user,
@@ -107,6 +125,7 @@ class ProfileAvatarView(UpdateAPIView, LoginRequiredMixin):
             "email": user.profile.email,
             "phone": user.profile.phone,
         }
+
         form = ProfileForm(data=data, files=request.FILES, instance=user.profile)
         if form.is_valid():
             form.save()

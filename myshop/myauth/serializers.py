@@ -13,7 +13,8 @@ class ProfileSerializer(serializers.ModelSerializer):
         model = Profile
         fields = "fullName", "email", "phone", "avatar"
 
-    def get_avatar(self, obj: Profile) -> Dict:
+    @staticmethod
+    def get_avatar(obj: Profile) -> Dict:
         if obj.avatar:
             return {"src": obj.avatar.url, "alt": obj.avatar.name}
         else:
