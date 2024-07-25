@@ -90,7 +90,7 @@ class ProductSerializer(serializers.ModelSerializer):
         )
 
     @staticmethod
-    def get_price(obj: Product) -> float:
+    def get_price(obj) -> float:
         return float(obj.price)
 
     @staticmethod

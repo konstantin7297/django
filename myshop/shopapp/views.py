@@ -113,12 +113,13 @@ class OrdersView(APIView):
     def post(self, request: Request, *args, **kwargs):
         order = Order.objects.create()
         order.save()
-        products = request.data
-        for product in products:
-            serializer = ProductSerializer(data=product)
-            if serializer.is_valid():
-                print(2, serializer.save())
-            # order.products.add(product)
+        serializer = ProductSerializer(data=request.data, many=True)
+        if serializer.is_valid():
+            print(1, serializer.validated_data)  # [{'category': <Category: Category: 'Category3'>, 'count': 50, 'date': datetime.datetime(2024, 7, 24, 6, 57, 59, 944237, tzinfo=zoneinfo.ZoneInfo(key='UTC')), 'title': 'Product8', 'description': 'Description8', 'freeDelivery': True, 'rating': 1.0}]
+            for product in serializer.validated_data:
+                print(2, product)  # Получаем словарь с данными продукта после десериализации, тут уже не хватает цены, картинок...
+                order.products.add(Product(**product))  # ValueError: Cannot add "<Product: Product: 'Product8'>": the value for field "product" is None
+            return Response({"orderId": order.id})
         return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
