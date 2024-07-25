@@ -62,11 +62,11 @@ class CatalogView(ListAPIView):
 #     # serializer_class = ProductSerializer
 
 
-# class ProductsLimitedView(ListAPIView):
-#     """В блок «Ограниченный тираж» попадают до 16 товаров с галочкой
-#     «ограниченный тираж». Отображаются эти товары в виде слайдера."""
-#     queryset = Product.objects.prefetch_related("tags", "images").select_related("category")[:16]
-#     # serializer_class = ProductSerializer
+class ProductsLimitedView(ListAPIView):
+    queryset = Product.objects.prefetch_related(
+        "tags", "images"
+    ).select_related("category").filter(limited=True)[:16]
+    serializer_class = ProductSerializer
 
 
 class ProductReviewView(APIView):
@@ -97,10 +97,7 @@ class ProductByIdView(APIView):
         product = Product.objects.prefetch_related(
             "images", "tags", "reviews", "specifications"
         ).get(pk=kwargs.get("id"))
-
-        if product:
-            return Response(FullProductSerializer(product).data)
-        return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(FullProductSerializer(product).data)
 
 
 class OrdersView(APIView):
@@ -123,13 +120,22 @@ class OrdersView(APIView):
         return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-# class OrdersByIdView(APIView):
-#     def get(self, request, *args, **kwargs):
-#         pass
-#
-#     @transaction.atomic
-#     def post(self, request, *args, **kwargs):
-#         pass
+class OrdersByIdView(APIView):
+    """ View for getting and updating orders by id """
+    def get(self, request, *args, **kwargs):
+        order = Order.objects.prefetch_related("products").get(pk=kwargs.get("id"))
+        return Response(OrderSerializer(order).data)
+
+    @transaction.atomic
+    def post(self, request, *args, **kwargs):
+        order = Order.objects.get(pk=kwargs.get("id"))
+        data = request.data
+        serializer = OrderSerializer(data=data, instance=order)
+
+        if serializer.is_valid():
+            serializer.update(order, serializer.validated_data)
+            return Response(status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # class SalesView(ListAPIView):

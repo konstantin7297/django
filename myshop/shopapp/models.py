@@ -44,6 +44,7 @@ class Product(models.Model):
     freeDelivery = models.BooleanField(default=False)
     tags = models.ManyToManyField(Tag, related_name="products")
     rating = models.FloatField(default=0, validators=[MinValueValidator(0), MaxValueValidator(5)])
+    limited = models.BooleanField(default=False)
 
     def __str__(self) -> str:
         return f"Product: {self.title!r}"
