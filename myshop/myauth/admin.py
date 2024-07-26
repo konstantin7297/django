@@ -14,9 +14,9 @@ class CustomUserAdmin(UserAdmin):
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
-    list_display = ("user", "fullName", "email", "phone")
-    list_display_links = ("fullName",)
-    ordering = ("pk", "fullName")
+    list_display = ("id", "user", "fullName", "email", "phone")
+    list_display_links = ("id", "fullName",)
+    ordering = ("id", "fullName")
     search_fields = ("fullName", "email", "phone")
     fieldsets = [
         (None, {

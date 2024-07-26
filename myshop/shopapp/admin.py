@@ -1,14 +1,16 @@
 from django.contrib import admin
 
-from .models import Category
+from .models import Category, Tag
 
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
-    list_display = ("title", "image")
-    list_display_links = ("title",)
-    ordering = ("title",)
+    list_display = ("id", "title", "image")
+    list_display_links = ("id", "title",)
+    ordering = ("id", "title",)
     search_fields = ("title",)
+    verbose_name = "Category"
+    verbose_name_plural = "Categories"
     fieldsets = [
         (None, {
             "description": "Main information of the category",
@@ -28,6 +30,28 @@ class CategoryAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return Category.objects.prefetch_related("subcategories")
+
+
+@admin.register(Tag)
+class TagAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "category")
+    list_display_links = ("id", "name")
+    ordering = ("id", "name")
+    search_fields = ("name",)
+    fieldsets = [
+        (None, {
+            "description": "Main information of the tag",
+            "fields": ("name",),
+        }),
+        ("Category", {
+            "description": "Category of the tag",
+            "fields": ("category",),
+            "classes": ("collapse",),
+        }),
+    ]
+
+    def get_queryset(self, request):
+        return Tag.objects.select_related("category")
 
 
 # @admin.register(Payment)

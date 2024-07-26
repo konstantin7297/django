@@ -35,7 +35,9 @@ class Category(models.Model):
 
 class Tag(models.Model):
     """ Model for tags """
-    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="tags")
+    category = models.ForeignKey(
+        Category, on_delete=models.CASCADE, related_name="tags"
+    )
     name = models.CharField(max_length=30)
 
     def __str__(self) -> str:
