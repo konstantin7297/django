@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Category, Tag, Product, ProductImage, Specification
+from .models import Category, Tag, Product, ProductImage, Specification, Review
 
 
 @admin.register(Category)
@@ -116,6 +116,23 @@ class SpecificationAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return Specification.objects.select_related("product")
+
+
+@admin.register(Review)
+class ReviewAdmin(admin.ModelAdmin):
+    list_display = ("id", "product", "author", "email", "text", "rate")
+    list_display_links = ("id", "product", "author", "email")
+    ordering = ("id", "product")
+    search_fields = ("id", "product", "author", "email", "text")
+    fieldsets = [
+        (None, {
+            "description": "Main information of the product review",
+            "fields": ("product", "author", "email", "text", "rate", "date"),
+        })
+    ]
+
+    def get_queryset(self, request):
+        return Review.objects.select_related("product")
 
 
 # @admin.register(Payment)
