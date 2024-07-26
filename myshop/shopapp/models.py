@@ -46,7 +46,6 @@ class Tag(models.Model):
 
 class Product(models.Model):
     """ Model for products """
-    category = models.ForeignKey(Category, on_delete=models.PROTECT, related_name="products")
     price = models.DecimalField(max_digits=50, decimal_places=2)
     count = models.PositiveIntegerField(default=0)
     date = models.DateTimeField(default=timezone.now)
@@ -54,9 +53,14 @@ class Product(models.Model):
     description = models.TextField(max_length=200, null=True, blank=True)
     fullDescription = models.TextField(max_length=500, null=True, blank=True)
     freeDelivery = models.BooleanField(default=False)
-    tags = models.ManyToManyField(Tag, related_name="products")
-    rating = models.FloatField(default=0, validators=[MinValueValidator(0), MaxValueValidator(5)])
+    rating = models.FloatField(default=0, validators=[
+        MinValueValidator(0), MaxValueValidator(5)
+    ])
     limited = models.BooleanField(default=False)
+    category = models.ForeignKey(
+        Category, on_delete=models.PROTECT, related_name="products"
+    )
+    tags = models.ManyToManyField(Tag, related_name="products")
 
     def __str__(self) -> str:
         return f"Product: {self.title!r}"

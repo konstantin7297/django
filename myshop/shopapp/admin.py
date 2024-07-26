@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Category, Tag
+from .models import Category, Tag, Product
 
 
 @admin.register(Category)
@@ -52,6 +52,37 @@ class TagAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return Tag.objects.select_related("category")
+
+
+@admin.register(Product)
+class ProductAdmin(admin.ModelAdmin):
+    list_display = (
+        "id", "title", "price", "count", "description", "freeDelivery", "limited"
+    )
+    list_display_links = ("id", "title", "description")
+    ordering = ("id", "title")
+    search_fields = ("title", "description", "price", "count")
+    fieldsets = [
+        (None, {
+            "description": "Main information of the product",
+            "fields": (
+                "title", "description", "fullDescription", "freeDelivery", "limited"
+            ),
+        }),
+        ("Integers", {
+            "description": "Side information of the product",
+            "fields": ("price", "count", "date", "rating"),
+            "classes": ("collapse",),
+        }),
+        ("Relationships", {
+            "description": "Relationships information of the product",
+            "fields": ("category", "tags"),
+            "classes": ("collapse",),
+        }),
+    ]
+
+    def get_queryset(self, request):
+        return Product.objects.select_related("category").prefetch_related("tags")
 
 
 # @admin.register(Payment)
