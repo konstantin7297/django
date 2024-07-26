@@ -1,3 +1,6 @@
+from datetime import datetime
+
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.utils import timezone
@@ -11,6 +14,13 @@ def path_to_img(instance, filename: str) -> str:
     """ Function for create path to save images """
     cls_name = instance.__class__.__name__.lower()
     return f"{cls_name}/id_{instance.pk}/images/{filename}"
+
+
+def payment_month_validator(value):
+    if str(value) not in [
+        "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"
+    ]:
+        raise ValidationError("Invalid payment month")
 
 
 class Category(models.Model):
@@ -93,6 +103,26 @@ class Order(models.Model):
 
     def __str__(self) -> str:
         return f"Order: {self.fullName!r}"
+
+
+class Payment(models.Model):
+    number = models.PositiveBigIntegerField(unique=True, validators=[
+        MinValueValidator(10000000), MaxValueValidator(99999999)
+    ])
+    name = models.CharField(max_length=50)
+    month = models.PositiveSmallIntegerField(validators=[payment_month_validator])
+    year = models.PositiveSmallIntegerField(validators=[
+        MinValueValidator(datetime.now().year), MaxValueValidator(datetime.now().year + 3)
+    ])
+    code = models.PositiveSmallIntegerField(validators=[
+        MinValueValidator(100), MaxValueValidator(999)
+    ])
+
+
+class Basket(models.Model):
+    user = models.CharField(unique=True, max_length=50)
+    count = models.PositiveIntegerField(default=1)
+    product = models.ManyToManyField(Product, related_name="baskets")
 
 
 # class Sales(models.Model):

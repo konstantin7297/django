@@ -19,8 +19,8 @@ class ProfileAdmin(admin.ModelAdmin):
     ordering = ("pk", "fullName")
     search_fields = ("fullName", "email", "phone")
     fieldsets = [
-        ("Profile", {
-            "description": "Profile information",
+        (None, {
+            "description": "Main profile information",
             "fields": ("user", "fullName", "email", "phone"),
         }),
         ("Media", {
