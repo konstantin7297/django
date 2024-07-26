@@ -74,21 +74,27 @@ class ProductImage(models.Model):
     image = models.ImageField(upload_to=path_to_img)
 
 
+class Specification(models.Model):
+    """ Model for product specifications """
+    product = models.ForeignKey(
+        Product, on_delete=models.CASCADE, related_name="specifications"
+    )
+    name = models.CharField(max_length=30)
+    value = models.CharField(max_length=30)
+
+
 class Review(models.Model):
     """ Model for product reviews """
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="reviews")
+    product = models.ForeignKey(
+        Product, on_delete=models.CASCADE, related_name="reviews"
+    )
     author = models.CharField(max_length=50)
     email = models.EmailField(max_length=50)
     text = models.CharField(max_length=500)
-    rate = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    rate = models.PositiveSmallIntegerField(validators=[
+        MinValueValidator(1), MaxValueValidator(5)
+    ])
     date = models.DateTimeField(default=timezone.now)
-
-
-class Specification(models.Model):
-    """ Model for product specifications """
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="specifications")
-    name = models.CharField(max_length=30)
-    value = models.CharField(max_length=30)
 
 
 class Order(models.Model):

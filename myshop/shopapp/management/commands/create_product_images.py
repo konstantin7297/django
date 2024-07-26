@@ -14,7 +14,7 @@ class Command(BaseCommand):
         products = Product.objects.all()
         product_images = [
             ProductImage(product=products[i - 1], image="my_img.jpg")
-            for i in range(1, 10)
+            for i in range(1, count)
         ]
         ProductImage.objects.bulk_create(product_images)
 
