@@ -2,7 +2,7 @@ from math import ceil
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Q, Avg
+from django.db.models import Q, Avg, F
 from django.http import HttpRequest
 from django.contrib.auth.mixins import LoginRequiredMixin
 from rest_framework import status
@@ -11,7 +11,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Category, Tag, Product, Review, Order, Basket
+from .models import Category, Tag, Product, Review, Basket, Order
 from .serializers import (
     CategorySerializer,
     TagSerializer,
@@ -20,6 +20,15 @@ from .serializers import (
     ShortProductSerializer,
     OrderSerializer,
 )
+
+
+def get_session(request: Request) -> int:
+    """ function for getting user session """
+    session = request.session.get("user", None)
+    if not session:
+        session = len(Basket.objects.order_by().values("user").distinct()) + 1
+        request.session["user"] = session
+    return session
 
 
 class CategoriesView(ListAPIView):
@@ -90,27 +99,79 @@ class BannersView(ListAPIView):  # TODO
     pass
 
 
-class BasketView(APIView):  # TODO
+class BasketView(APIView):
     """ View for basket operations """
-    def get(self, request: Request, *args, **kwargs):
-        return Response(status=status.HTTP_200_OK)
+    @staticmethod
+    def get(request: Request, *args, **kwargs):
+        return Response(ShortProductSerializer([
+            basket.product for basket in
+            Basket.objects.select_related("product").filter(user=get_session(request))
+        ], many=True).data)
 
+    @staticmethod
     @transaction.atomic
-    def post(self, request: Request, *args, **kwargs):
-        get_user = request.session.get("user", None)
+    def post(request: Request, *args, **kwargs):
+        session = get_session(request)
 
-        if not get_user:
-            pass
+        count = request.data.get("count", 1)
+        product = Product.objects.filter(
+            pk=request.data.get("id"),
+            count__gte=count,
+        )
 
-        print(get_user)
-        if not get_user:
-            request.session["user"] = 1
-        return Response(f"{get_user}")
-        # check_basket = Basket.objects.select_related("user").get()
+        if product:
+            product = product[0]
+            product.count = F("count") - count
+            basket = Basket.objects.filter(user=session, product=product)
 
+            if basket:
+                basket = basket[0]
+                basket.count = F("count") + count
+            else:
+                basket = Basket.objects.create(
+                    user=session, count=count, product=product
+                )
+
+            product.save(update_fields=["count"])
+            basket.save()
+            return Response(ShortProductSerializer([
+                basket.product for basket in Basket.objects.filter(user=session)
+            ], many=True).data)
+
+        return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @staticmethod
     @transaction.atomic
-    def delete(self, request: Request, *args, **kwargs):
-        pass
+    def delete(request: Request, *args, **kwargs):
+        session = get_session(request)
+
+        count = request.data.get("count", 1)
+        product = Product.objects.get(pk=request.data.get("id"))
+
+        baskets = Basket.objects.filter(
+            user=session,
+            product=product,
+        )
+
+        if baskets:
+            baskets = baskets[0]
+        else:
+            return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        if baskets.count > count:
+            baskets.count = F("count") - count
+            product.count = F("count") + count
+            baskets.save(update_fields=["count"])
+            product.save(update_fields=["count"])
+
+        else:
+            product.count = F("count") + baskets.count
+            baskets.delete()
+            product.save(update_fields=["count"])
+
+        return Response(ShortProductSerializer([
+            basket.product for basket in Basket.objects.filter(user=session)
+        ], many=True).data)
 
 
 class OrdersView(APIView):
@@ -129,8 +190,9 @@ class OrdersView(APIView):
         for product in request.data:
             product_obj = Product.objects.get(pk=product.get("id"))
             order.products.add(product_obj)
+            order.totalCost = F("totalCost") + product_obj.price
 
-        order.save(update_fields=["products"])
+        order.save()
         return Response({"orderId": order.id})
 
 
