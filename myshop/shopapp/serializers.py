@@ -18,15 +18,13 @@ class CategorySerializer(serializers.ModelSerializer):
     def get_image(obj: Category) -> Dict:
         if obj.image:
             return {"src": obj.image.url, "alt": obj.image.name}
-        else:
-            return {}
+        return {}
 
     @staticmethod
     def get_subcategories(obj: Category) -> List:
         if obj.subcategories:
             return [CategorySerializer(cat).data for cat in obj.subcategories.all()]
-        else:
-            return []
+        return []
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -34,6 +32,46 @@ class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
         fields = ("id", "name")
+
+
+class ShortProductSerializer(serializers.ModelSerializer):
+    """ Serializer for short product model """
+    price = serializers.SerializerMethodField(method_name='get_price')
+    images = serializers.SerializerMethodField(method_name='get_images')
+    tags = serializers.SerializerMethodField(method_name='get_tags')
+    reviews = serializers.SerializerMethodField(method_name='get_reviews')
+
+    class Meta:
+        model = Product
+        fields = (
+            "id", "category", "price", "count", "date", "title", "description",
+            "freeDelivery", "images", "tags", "reviews", "rating"
+        )
+
+    @staticmethod
+    def get_price(obj: Product) -> float:
+        if obj.price:
+            return float(obj.price)
+        return 0.0
+
+    @staticmethod
+    def get_images(obj: Product) -> List:
+        if obj.images:
+            return [
+                {"src": img.image.url, "alt": img.image.name}
+                for img in obj.images.all()
+            ]
+        return []
+
+    @staticmethod
+    def get_tags(obj: Product) -> List:
+        if obj.tags:
+            return [{"id": tag.pk, "name": tag.name} for tag in obj.tags.all()]
+        return []
+
+    @staticmethod
+    def get_reviews(obj: Product) -> int:
+        return len(obj.reviews.all())
 
 
 class FullProductSerializer(serializers.ModelSerializer):
@@ -46,15 +84,21 @@ class FullProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = "__all__"
+        fields = (
+            "id", "category", "price", "count", "date", "title", "description",
+            "fullDescription", "freeDelivery", "images", "tags", "reviews",
+            "specifications", "rating"
+        )
 
     @staticmethod
     def get_category(obj: Product) -> int:
-        return obj.category.id
+        return int(obj.category.id)
 
     @staticmethod
     def get_images(obj: Product) -> List:
-        return [{"src": img.image.url, "alt": img.image.name} for img in obj.images.all()]
+        return [
+            {"src": img.image.url, "alt": img.image.name} for img in obj.images.all()
+        ]
 
     @staticmethod
     def get_tags(obj: Product) -> List:
@@ -72,44 +116,10 @@ class FullProductSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def get_specifications(obj: Product) -> List:
-        return [{"name": spec.name, "value": spec.value} for spec in obj.specifications.all()]
-
-
-class ProductSerializer(serializers.ModelSerializer):
-    """ Serializer for short product model """
-    price = serializers.SerializerMethodField(method_name='get_price')
-    images = serializers.SerializerMethodField(method_name='get_images')
-    tags = serializers.SerializerMethodField(method_name='get_tags')
-    reviews = serializers.SerializerMethodField(method_name='get_reviews')
-
-    class Meta:
-        model = Product
-        fields = (
-            "id", "category", "price", "count", "date", "title", "description",
-            "freeDelivery", "images", "tags", "reviews", "rating"
-        )
-
-    @staticmethod
-    def get_price(obj) -> float:
-        return float(obj.price)
-
-    @staticmethod
-    def get_images(obj: Product) -> List:
-        if obj.images:
-            return [{"src": img.image.url, "alt": img.image.name} for img in obj.images.all()]
-        else:
-            return []
-
-    @staticmethod
-    def get_tags(obj: Product) -> List:
-        if obj.tags:
-            return [{"id": tag.pk, "name": tag.name} for tag in obj.tags.all()]
-        else:
-            return []
-
-    @staticmethod
-    def get_reviews(obj: Product) -> int:
-        return len(obj.reviews.all())
+        return [
+            {"name": spec.name, "value": spec.value}
+            for spec in obj.specifications.all()
+        ]
 
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -129,4 +139,4 @@ class OrderSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def get_products(obj: Order) -> List:
-        return [ProductSerializer(product).data for product in obj.products.all()]
+        return [ShortProductSerializer(product).data for product in obj.products.all()]

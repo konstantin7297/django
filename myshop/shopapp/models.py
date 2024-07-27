@@ -25,6 +25,10 @@ def payment_month_validator(value):
 
 class Category(models.Model):
     """ Model for categories """
+    class Meta:
+        verbose_name = 'category'
+        verbose_name_plural = 'categories'
+
     title = models.CharField(max_length=50)
     image = models.ImageField(null=True, blank=True, upload_to=path_to_img)
     subcategories = models.ManyToManyField("self")
@@ -46,6 +50,9 @@ class Tag(models.Model):
 
 class Product(models.Model):
     """ Model for products """
+    class Meta:
+        ordering = ['price']
+
     price = models.DecimalField(max_digits=50, decimal_places=2)
     count = models.PositiveIntegerField(default=0)
     date = models.DateTimeField(default=timezone.now)

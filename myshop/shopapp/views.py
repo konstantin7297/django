@@ -11,14 +11,13 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .forms import ReviewForm
 from .models import Category, Tag, Product, Review, Order, Basket
 from .serializers import (
     CategorySerializer,
     TagSerializer,
     FullProductSerializer,
     ReviewSerializer,
-    ProductSerializer,
+    ShortProductSerializer,
     OrderSerializer,
 )
 
@@ -43,16 +42,23 @@ class CatalogView(ListAPIView):
         start_row = max((page - 1) * limit, 1)
         end_row = page * limit + 1
 
+        name = data.get('filter[name]')
+        price_min = Decimal(data.get('filter[minPrice]', 0))
+        price_max = Decimal(data.get('filter[maxPrice]', 9999999999))
+        free_delivery = bool(data.get('filter[freeDelivery]', "false").capitalize())
+        available = bool(data.get('filter[available]', "true").capitalize())
+        sort = data.get('sortType', "dec")
+
         result = self.get_queryset().filter(
-            Q(name__icontains=data.get('filter[name]')) if data.get('filter[name]') else Q(),
-            price__gte=Decimal(data.get('filter[minPrice]', 0)),
-            price__lte=Decimal(data.get('filter[maxPrice]', 9999999999)),
-            freeDelivery=bool(data.get('filter[freeDelivery]', "false").capitalize()),
-            count__gt=0 if bool(data.get('filter[available]', "true").capitalize()) else Q(),
-        ).order_by('price' if data.get('sortType', "dec") == 'inc' else '-price')[start_row:end_row]
+            Q(name__icontains=name) if name else Q(),
+            price__gte=price_min,
+            price__lte=price_max,
+            freeDelivery=free_delivery,
+            count__gt=0 if available else Q(),
+        ).order_by('price' if sort == 'inc' else '-price')[start_row:end_row]
 
         return Response({
-            "items": ProductSerializer(result, many=True).data,
+            "items": ShortProductSerializer(result, many=True).data,
             "currentPage": page,
             "lastPage": ceil(len(result) / limit)
         })
@@ -63,7 +69,7 @@ class ProductsPopularView(ListAPIView):  # TODO
     сортировки». Если же индекс сортировки совпадает, то товары сортируются
     по количеству покупок."""
     queryset = Product.objects.prefetch_related("tags", "images").select_related("category")[:8]
-    serializer_class = ProductSerializer
+    serializer_class = ShortProductSerializer
 
 
 class ProductsLimitedView(ListAPIView):
@@ -71,7 +77,7 @@ class ProductsLimitedView(ListAPIView):
     queryset = Product.objects.prefetch_related(
         "tags", "images"
     ).select_related("category").filter(limited=True)[:16]
-    serializer_class = ProductSerializer
+    serializer_class = ShortProductSerializer
 
 
 class SalesView(ListAPIView):  # TODO
@@ -170,29 +176,30 @@ class TagsView(ListAPIView):
 class ProductByIdView(APIView):
     """ View for getting a full product information by id """
     @staticmethod
-    def get(request, *args, **kwargs):
+    def get(request: Request, *args, **kwargs) -> Response:
         product = Product.objects.prefetch_related(
             "images", "tags", "reviews", "specifications"
-        ).get(pk=kwargs.get("id"))
-        return Response(FullProductSerializer(product).data)
+        ).select_related("category").get(pk=kwargs.get("id"))
+
+        if product:
+            return Response(FullProductSerializer(product).data)
+        return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ProductReviewView(APIView):
     """ View for posting reviews for a product """
     @staticmethod
     @transaction.atomic
-    def post(request, *args, **kwargs):
+    def post(request: Request, *args, **kwargs):
         product = Product.objects.get(pk=kwargs.get("id"))
-        data = request.data
-        data["product"] = product
 
-        form = ReviewForm(data=data)
-        if form.is_valid():
-            form.save()
+        serializer = ReviewSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(product=product)
 
             rating = product.reviews.aggregate(Avg("rate"))
             product.rating = round(rating["rate__avg"], 1)
-            product.save()
+            product.save(update_fields=["rating"])
 
             return Response(ReviewSerializer(
                 Review.objects.filter(product__id=kwargs.get("id")), many=True
