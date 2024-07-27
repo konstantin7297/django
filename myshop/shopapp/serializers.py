@@ -5,6 +5,21 @@ from rest_framework import serializers
 from .models import Category, Tag, Product, Review, Order
 
 
+class SideCategorySerializer(serializers.ModelSerializer):
+    """ Side serializer for category model """
+    image = serializers.SerializerMethodField(method_name='get_image')
+
+    class Meta:
+        model = Category
+        fields = ("id", "title", "image")
+
+    @staticmethod
+    def get_image(obj: Category) -> Dict:
+        if obj.image:
+            return {"src": obj.image.url, "alt": obj.image.name}
+        return {}
+
+
 class CategorySerializer(serializers.ModelSerializer):
     """ Serializer for category model """
     image = serializers.SerializerMethodField(method_name='get_image')
@@ -23,7 +38,7 @@ class CategorySerializer(serializers.ModelSerializer):
     @staticmethod
     def get_subcategories(obj: Category) -> List:
         if obj.subcategories:
-            return [CategorySerializer(cat).data for cat in obj.subcategories.all()]
+            return SideCategorySerializer(obj.subcategories.all(), many=True).data
         return []
 
 
