@@ -104,19 +104,30 @@ class Review(models.Model):
     date = models.DateTimeField(default=timezone.now)
 
 
+class Basket(models.Model):
+    """ Model for baskets """
+    user = models.PositiveBigIntegerField()
+    count = models.PositiveIntegerField(default=1)
+    product = models.ForeignKey(
+        Product, on_delete=models.CASCADE, related_name="baskets"
+    )
+
+
 class Order(models.Model):
     """ Model for orders """
     createdAt = models.DateTimeField(default=timezone.now)
     fullName = models.CharField(max_length=50)
     email = models.EmailField(max_length=50)
     phone = models.CharField(max_length=20)
-    deliveryType = models.CharField(max_length=50, choices=[
-        ("Del", "Доставка"), ("ExDel", "Экспресс-доставка")
+    deliveryType = models.CharField(max_length=99, choices=[
+        ("Delivery", "free"),
+        ("ExpressDelivery", "paying"),
     ])
-    paymentType = models.CharField(max_length=50, choices=[
-        ("Online", "Онлайн картой"), ("Alien Online", "Онлайн со случайного чужого счёта")
+    paymentType = models.CharField(max_length=99, choices=[
+        ("CardOnline", "card"),
+        ("AlienOnline", "cash"),
     ])
-    totalCost = models.FloatField(default=0)
+    totalCost = models.DecimalField(default=0, max_digits=50, decimal_places=2)
     status = models.CharField(max_length=50)
     city = models.CharField(max_length=50)
     address = models.CharField(max_length=50)
@@ -138,12 +149,6 @@ class Payment(models.Model):
     code = models.PositiveSmallIntegerField(validators=[
         MinValueValidator(100), MaxValueValidator(999)
     ])
-
-
-class Basket(models.Model):
-    user = models.CharField(unique=True, max_length=50)
-    count = models.PositiveIntegerField(default=1)
-    product = models.ManyToManyField(Product, related_name="baskets")
 
 
 # class Sales(models.Model):

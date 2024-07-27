@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Category, Tag, Product, ProductImage, Specification, Review
+from .models import Category, Tag, Product, ProductImage, Specification, Review, Basket
 
 
 @admin.register(Category)
@@ -80,7 +80,7 @@ class ProductAdmin(admin.ModelAdmin):
         }),
     ]
 
-    def get_queryset(self, request):  # TODO: images, specifications
+    def get_queryset(self, request):  # TODO: images, specifications, reviews, baskets
         return Product.objects.select_related("category").prefetch_related("tags")
 
 
@@ -133,6 +133,23 @@ class ReviewAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         return Review.objects.select_related("product")
+
+
+@admin.register(Basket)
+class BasketAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "count", "product")
+    list_display_links = ("id", "user", "count")
+    ordering = ("id", "user", "count")
+    search_fields = ("id", "user", "count", "product")
+    fieldsets = [
+        (None, {
+            "description": "Main information of the basket",
+            "fields": ("user", "count", "product"),
+        }),
+    ]
+
+    def get_queryset(self, request):
+        return Basket.objects.select_related("product")
 
 
 # @admin.register(Payment)
