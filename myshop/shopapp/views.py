@@ -2,7 +2,7 @@ from math import ceil
 from decimal import Decimal
 
 from django.db import transaction
-from django.db.models import Q, Avg, F
+from django.db.models import Q, Avg, F, Sum
 from django.http import HttpRequest
 from django.contrib.auth.mixins import LoginRequiredMixin
 from rest_framework import status
@@ -73,11 +73,15 @@ class CatalogView(ListAPIView):
         })
 
 
-class ProductsPopularView(ListAPIView):  # TODO
-    """В каталог топ-товаров попадают восемь первых товаров по параметру «индекс
-    сортировки». Если же индекс сортировки совпадает, то товары сортируются
-    по количеству покупок."""
-    queryset = Product.objects.prefetch_related("tags", "images").select_related("category")[:8]
+class ProductsPopularView(ListAPIView):
+    """ View for listing all popular products """
+    queryset = (
+        Product.objects
+        .prefetch_related("tags", "images", "baskets")
+        .select_related("category")
+        .annotate(selling=Sum("baskets__count", default=0))
+        .order_by("price", "selling")[:8]
+    )
     serializer_class = ShortProductSerializer
 
 
@@ -218,6 +222,7 @@ class OrdersByIdView(APIView):
 
 class PaymentView(APIView, LoginRequiredMixin):
     """ View for payments """
+    @transaction.atomic
     def post(self, request: Request, *args, **kwargs) -> Response:
         pass  # TODO: В ТЗ инструкция.
 

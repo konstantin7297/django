@@ -20,7 +20,6 @@ app_name = 'shopapp'
 
 urlpatterns = [
     path('categories/', CategoriesView.as_view(), name="categories"),
-    path('catalog', CatalogView.as_view(), name="catalog"),
     path('catalog/', CatalogView.as_view(), name="catalog"),
     path('products/popular/', ProductsPopularView.as_view(), name="products-popular"),
     path('products/limited/', ProductsLimitedView.as_view(), name="products-limited"),
