@@ -52,6 +52,7 @@ class TagSerializer(serializers.ModelSerializer):
 class ShortProductSerializer(serializers.ModelSerializer):
     """ Serializer for short product model """
     price = serializers.SerializerMethodField(method_name='get_price')
+    date = serializers.SerializerMethodField(method_name='get_date')
     images = serializers.SerializerMethodField(method_name='get_images')
     tags = serializers.SerializerMethodField(method_name='get_tags')
     reviews = serializers.SerializerMethodField(method_name='get_reviews')
@@ -68,6 +69,10 @@ class ShortProductSerializer(serializers.ModelSerializer):
         if obj.price:
             return float(obj.price)
         return 0.0
+
+    @staticmethod
+    def get_date(obj: Product) -> str:
+        return obj.date.strftime("%a %b %d %Y %H:%M:%S %z %Z")
 
     @staticmethod
     def get_images(obj: Product) -> List:
@@ -91,6 +96,8 @@ class ShortProductSerializer(serializers.ModelSerializer):
 
 class FullProductSerializer(serializers.ModelSerializer):
     """ Serializer for full product model """
+    price = serializers.SerializerMethodField(method_name='get_price')
+    date = serializers.SerializerMethodField(method_name='get_date')
     category = serializers.SerializerMethodField(method_name='get_category')
     images = serializers.SerializerMethodField(method_name='get_images')
     tags = serializers.SerializerMethodField(method_name='get_tags')
@@ -106,6 +113,14 @@ class FullProductSerializer(serializers.ModelSerializer):
         )
 
     @staticmethod
+    def get_price(obj: Product) -> float:
+        return float(obj.price)
+
+    @staticmethod
+    def get_date(obj: Product) -> str:
+        return obj.date.strftime("%a %b %d %Y %H:%M:%S %z %Z")
+
+    @staticmethod
     def get_category(obj: Product) -> int:
         return int(obj.category.id)
 
@@ -117,17 +132,11 @@ class FullProductSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def get_tags(obj: Product) -> List:
-        return [tag.name for tag in obj.tags.all()]
+        return TagSerializer(obj.tags.all(), many=True).data
 
     @staticmethod
     def get_reviews(obj: Product) -> List:
-        return [{
-            "author": review.author,
-            "email": review.email,
-            "text": review.text,
-            "rate": review.rate,
-            "date": review.date,
-        } for review in obj.reviews.all()]
+        return ReviewSerializer(obj.reviews.all(), many=True).data
 
     @staticmethod
     def get_specifications(obj: Product) -> List:
@@ -139,13 +148,20 @@ class FullProductSerializer(serializers.ModelSerializer):
 
 class ReviewSerializer(serializers.ModelSerializer):
     """ Serializer for review model """
+    date = serializers.SerializerMethodField(method_name='get_date')
+
     class Meta:
         model = Review
         fields = ("author", "email", "text", "rate", "date")
 
+    @staticmethod
+    def get_date(obj: Review) -> str:
+        return obj.date.strftime("%Y-%m-%d %H:%M")
+
 
 class OrderSerializer(serializers.ModelSerializer):
     """ Serializer for order model """
+    createdAt = serializers.SerializerMethodField(method_name='get_date')
     products = serializers.SerializerMethodField(method_name='get_products')
 
     class Meta:
@@ -153,5 +169,9 @@ class OrderSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
     @staticmethod
+    def get_date(obj: Order) -> str:
+        return obj.createdAt.strftime("%Y-%m-%d %H:%M")
+
+    @staticmethod
     def get_products(obj: Order) -> List:
-        return [ShortProductSerializer(product).data for product in obj.products.all()]
+        return ShortProductSerializer(obj.products.all(), many=True).data

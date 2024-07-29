@@ -3,11 +3,6 @@ from datetime import datetime
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
-from django.utils import timezone
-import zoneinfo
-
-tz = zoneinfo.ZoneInfo('Europe/Berlin')
-timezone.activate(tz)
 
 
 def path_to_img(instance, filename: str) -> str:
@@ -55,7 +50,7 @@ class Product(models.Model):
 
     price = models.DecimalField(max_digits=50, decimal_places=2)
     count = models.PositiveIntegerField(default=0)
-    date = models.DateTimeField(default=timezone.now)
+    date = models.DateTimeField(auto_now_add=True)
     title = models.CharField(max_length=50)
     description = models.TextField(max_length=200, null=True, blank=True)
     fullDescription = models.TextField(max_length=500, null=True, blank=True)
@@ -101,7 +96,7 @@ class Review(models.Model):
     rate = models.PositiveSmallIntegerField(validators=[
         MinValueValidator(1), MaxValueValidator(5)
     ])
-    date = models.DateTimeField(default=timezone.now)
+    date = models.DateTimeField(auto_now_add=True)
 
 
 class Basket(models.Model):
@@ -115,7 +110,7 @@ class Basket(models.Model):
 
 class Order(models.Model):
     """ Model for orders """
-    createdAt = models.DateTimeField(default=timezone.now)
+    createdAt = models.DateTimeField(auto_now_add=True)
     fullName = models.CharField(max_length=50)
     email = models.EmailField(max_length=50)
     phone = models.CharField(max_length=20)

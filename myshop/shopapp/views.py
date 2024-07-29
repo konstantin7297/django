@@ -1,5 +1,6 @@
 from math import ceil
 from decimal import Decimal
+from copy import copy
 
 from django.db import transaction
 from django.db.models import Q, Avg, F, Sum
@@ -36,14 +37,18 @@ class CategoriesView(ListAPIView):
     queryset = Category.objects.prefetch_related("subcategories")
     serializer_class = CategorySerializer
 
+    def get(self, request: Request, *args, **kwargs) -> Response:
+        return Response(self.serializer_class(self.get_queryset(), many=True).data)
+
 
 class CatalogView(ListAPIView):
     """ View for listing filtered products """
     queryset = Product.objects.prefetch_related(
         "tags", "images"
     ).select_related("category")
+    serializer_class = ShortProductSerializer
 
-    def get(self, request: Request, *args, **kwargs):
+    def get(self, request: Request, *args, **kwargs) -> Response:
         data = request.query_params.dict()
         page = int(data.get("currentPage", 1))
         limit = int(data.get("limit", 20))
@@ -67,7 +72,7 @@ class CatalogView(ListAPIView):
         ).order_by('price' if sort == 'inc' else '-price')[start_row:end_row]
 
         return Response({
-            "items": ShortProductSerializer(result, many=True).data,
+            "items": self.serializer_class(result, many=True).data,
             "currentPage": page,
             "lastPage": ceil(len(result) / limit)
         })
@@ -84,6 +89,9 @@ class ProductsPopularView(ListAPIView):
     )
     serializer_class = ShortProductSerializer
 
+    def get(self, request: Request, *args, **kwargs) -> Response:
+        return Response(self.serializer_class(self.get_queryset(), many=True).data)
+
 
 class ProductsLimitedView(ListAPIView):
     """ View for listing products limited """
@@ -91,6 +99,9 @@ class ProductsLimitedView(ListAPIView):
         "tags", "images"
     ).select_related("category").filter(limited=True)[:16]
     serializer_class = ShortProductSerializer
+
+    def get(self, request: Request, *args, **kwargs) -> Response:
+        return Response(self.serializer_class(self.get_queryset(), many=True).data)
 
 
 class SalesView(ListAPIView):  # TODO
@@ -107,14 +118,19 @@ class BasketView(APIView):
     """ View for basket operations """
     @staticmethod
     def get(request: Request, *args, **kwargs):
-        return Response(ShortProductSerializer([
-            basket.product for basket in
-            Basket.objects.select_related("product").filter(user=get_session(request))
-        ], many=True).data)
+        basket_products: list = list()
 
-    @staticmethod
+        for basket in Basket.objects.select_related(
+                "product"
+        ).filter(user=get_session(request)):
+            product = basket.product
+            product.count = basket.count
+            basket_products.append(product)
+
+        return Response(ShortProductSerializer(basket_products, many=True).data)
+
     @transaction.atomic
-    def post(request: Request, *args, **kwargs):
+    def post(self, request: Request, *args, **kwargs):
         session = get_session(request)
 
         count = request.data.get("count", 1)
@@ -125,28 +141,27 @@ class BasketView(APIView):
 
         if product:
             product = product[0]
+
             product.count = F("count") - count
             basket = Basket.objects.filter(user=session, product=product)
 
             if basket:
                 basket = basket[0]
                 basket.count = F("count") + count
+                basket.save(update_fields=["count"])
             else:
                 basket = Basket.objects.create(
                     user=session, count=count, product=product
                 )
+                basket.save()
 
             product.save(update_fields=["count"])
-            basket.save()
-            return Response(ShortProductSerializer([
-                basket.product for basket in Basket.objects.filter(user=session)
-            ], many=True).data)
+            return self.get(request, *args, **kwargs)
 
         return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @staticmethod
     @transaction.atomic
-    def delete(request: Request, *args, **kwargs):
+    def delete(self, request: Request, *args, **kwargs):
         session = get_session(request)
 
         count = request.data.get("count", 1)
@@ -173,9 +188,7 @@ class BasketView(APIView):
             baskets.delete()
             product.save(update_fields=["count"])
 
-        return Response(ShortProductSerializer([
-            basket.product for basket in Basket.objects.filter(user=session)
-        ], many=True).data)
+        return self.get(request, *args, **kwargs)
 
 
 class OrdersView(APIView):
@@ -193,10 +206,14 @@ class OrdersView(APIView):
 
         for product in request.data:
             product_obj = Product.objects.get(pk=product.get("id"))
-            order.products.add(product_obj)
-            order.totalCost = F("totalCost") + product_obj.price
 
-        order.save()
+            if product_obj:
+                order.products.add(product_obj)
+                order.totalCost = F("totalCost") + (
+                        product.get("price") * product.get("count")
+                )
+
+        order.save(update_fields=["totalCost"])
         return Response({"orderId": order.id})
 
 
@@ -230,14 +247,16 @@ class PaymentView(APIView, LoginRequiredMixin):
 class TagsView(ListAPIView):
     """ View for listing all tags by category """
     queryset = Tag.objects
+    serializer_class = TagSerializer
 
-    def get(self, request, *args, **kwargs):
-        category = request.query_params.dict().get("category")
-        if category:
-            return Response(TagSerializer(
-                self.get_queryset().filter(category__id=category), many=True
-            ).data)
-        return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    def get(self, request: Request, *args, **kwargs) -> Response:
+        # category = request.query_params.dict().get("category")
+        # if category:
+        #     return Response(self.serializer_class(
+        #         self.get_queryset().filter(category__id=category), many=True
+        #     ).data)
+        # return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(self.serializer_class(self.get_queryset(), many=True).data)
 
 
 class ProductByIdView(APIView):
@@ -259,7 +278,6 @@ class ProductReviewView(APIView):
     @transaction.atomic
     def post(request: Request, *args, **kwargs):
         product = Product.objects.get(pk=kwargs.get("id"))
-
         serializer = ReviewSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save(product=product)
