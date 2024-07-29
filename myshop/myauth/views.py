@@ -109,6 +109,7 @@ class ProfilePasswordView(UpdateAPIView, LoginRequiredMixin):
         if user:
             user.password = make_password(request.data.get("newPassword"))
             user.save()
+            login(request, user)
             return Response(status=status.HTTP_200_OK)
         return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
