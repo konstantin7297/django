@@ -12,7 +12,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Category, Tag, Product, Review, Basket, Order
+from .models import Category, Tag, Product, ProductImage, Review, Basket, Order
 from .serializers import (
     CategorySerializer,
     TagSerializer,
@@ -45,7 +45,7 @@ class CatalogView(ListAPIView):
     """ View for listing filtered products """
     queryset = Product.objects.prefetch_related(
         "tags", "images"
-    ).select_related("category")
+    ).select_related("category").filter(sale=False)
     serializer_class = ShortProductSerializer
 
     def get(self, request: Request, *args, **kwargs) -> Response:
@@ -84,6 +84,7 @@ class ProductsPopularView(ListAPIView):
         Product.objects
         .prefetch_related("tags", "images", "baskets")
         .select_related("category")
+        .filter(sale=False)
         .annotate(selling=Sum("baskets__count", default=0))
         .order_by("price", "selling")[:8]
     )
@@ -97,7 +98,7 @@ class ProductsLimitedView(ListAPIView):
     """ View for listing products limited """
     queryset = Product.objects.prefetch_related(
         "tags", "images"
-    ).select_related("category").filter(limited=True)[:16]
+    ).select_related("category").filter(limited=True, sale=False)[:16]
     serializer_class = ShortProductSerializer
 
     def get(self, request: Request, *args, **kwargs) -> Response:
@@ -137,6 +138,7 @@ class BasketView(APIView):
         product = Product.objects.filter(
             pk=request.data.get("id"),
             count__gte=count,
+            sale=False
         )
 
         if product:
@@ -149,6 +151,7 @@ class BasketView(APIView):
                 basket = basket[0]
                 basket.count = F("count") + count
                 basket.save(update_fields=["count"])
+
             else:
                 basket = Basket.objects.create(
                     user=session, count=count, product=product
@@ -207,8 +210,21 @@ class OrdersView(APIView):
         for product in request.data:
             product_obj = Product.objects.get(pk=product.get("id"))
 
-            if product_obj:
-                order.products.add(product_obj)
+            product_obj.count = product.get("count")
+            product_obj.sale = True
+            product_obj.id = None
+            sale_product = Product.objects.bulk_create([product_obj])
+
+            if sale_product:
+                image_obj = ProductImage.objects.filter(
+                    product__id=product.get("id")
+                ).first()
+
+                ProductImage.objects.create(
+                    product=sale_product[0], image=image_obj.image
+                )
+
+                order.products.add(sale_product[0])
                 order.totalCost = F("totalCost") + (
                         product.get("price") * product.get("count")
                 )
@@ -232,7 +248,7 @@ class OrdersByIdView(APIView):
         serializer = OrderSerializer(data=data, instance=order)
 
         if serializer.is_valid():
-            serializer.update(order, serializer.validated_data)
+            serializer.update(instance=order, validated_data=serializer.validated_data)
             return Response(status=status.HTTP_200_OK)
         return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -250,12 +266,6 @@ class TagsView(ListAPIView):
     serializer_class = TagSerializer
 
     def get(self, request: Request, *args, **kwargs) -> Response:
-        # category = request.query_params.dict().get("category")
-        # if category:
-        #     return Response(self.serializer_class(
-        #         self.get_queryset().filter(category__id=category), many=True
-        #     ).data)
-        # return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response(self.serializer_class(self.get_queryset(), many=True).data)
 
 

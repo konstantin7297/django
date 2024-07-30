@@ -59,6 +59,7 @@ class Product(models.Model):
         MinValueValidator(0), MaxValueValidator(5)
     ])
     limited = models.BooleanField(default=False)
+    sale = models.BooleanField(default=False)
     category = models.ForeignKey(
         Category, on_delete=models.PROTECT, related_name="products"
     )
@@ -115,15 +116,15 @@ class Order(models.Model):
     email = models.EmailField(max_length=50)
     phone = models.CharField(max_length=20)
     deliveryType = models.CharField(max_length=99, choices=[
-        ("Delivery", "free"),
-        ("ExpressDelivery", "paying"),
+        ("ordinary", "free"),
+        ("express", "paying"),
     ])
     paymentType = models.CharField(max_length=99, choices=[
-        ("CardOnline", "card"),
-        ("AlienOnline", "cash"),
+        ("online", "card"),
+        ("someone", "cash"),
     ])
     totalCost = models.DecimalField(default=0, max_digits=50, decimal_places=2)
-    status = models.CharField(max_length=50)
+    status = models.CharField(max_length=50, blank=True)
     city = models.CharField(max_length=50)
     address = models.CharField(max_length=50)
     products = models.ManyToManyField(Product, related_name="orders")

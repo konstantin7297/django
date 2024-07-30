@@ -18,7 +18,7 @@ from .views import (
 
 app_name = 'shopapp'
 
-urlpatterns = [
+urlpatterns = [  # http://127.0.0.1:8000/payment/undefined/
     path('categories/', CategoriesView.as_view(), name="categories"),
     path('catalog', CatalogView.as_view(), name="catalog"),  # fix
     path('products/popular/', ProductsPopularView.as_view(), name="products-popular"),
@@ -26,8 +26,8 @@ urlpatterns = [
     path('sales', SalesView.as_view(), name="sales"),  # fix
     path('banners', BannersView.as_view(), name="banners"),  # fix
     path('basket', BasketView.as_view(), name="basket"),
-    path('orders', OrdersView.as_view(), name="orders"),  # fix
-    path('order/<int:id>', OrdersByIdView.as_view(), name="order-by-id"),  # fix
+    path('orders', OrdersView.as_view(), name="orders"),
+    path('order/<int:id>', OrdersByIdView.as_view(), name="order-by-id"),
     path("payment", PaymentView.as_view(), name="payment"),  # fix
     path('tags/', TagsView.as_view(), name="tags"),
     path('product/<int:id>', ProductByIdView.as_view(), name="product-by-id"),
