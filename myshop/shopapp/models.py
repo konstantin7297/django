@@ -1,6 +1,5 @@
 from datetime import datetime
 
-from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
@@ -9,13 +8,6 @@ def path_to_img(instance, filename: str) -> str:
     """ Function for create path to save images """
     cls_name = instance.__class__.__name__.lower()
     return f"{cls_name}/id_{instance.pk}/images/{filename}"
-
-
-def payment_month_validator(value):
-    if str(value) not in [
-        "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"
-    ]:
-        raise ValidationError("Invalid payment month")
 
 
 class Category(models.Model):
@@ -108,6 +100,9 @@ class Basket(models.Model):
         Product, on_delete=models.CASCADE, related_name="baskets"
     )
 
+    def __str__(self) -> str:
+        return f"Basket: {self.user!r}"
+
 
 class Order(models.Model):
     """ Model for orders """
@@ -116,12 +111,10 @@ class Order(models.Model):
     email = models.EmailField(max_length=50)
     phone = models.CharField(max_length=20)
     deliveryType = models.CharField(max_length=99, choices=[
-        ("ordinary", "free"),
-        ("express", "paying"),
+        ("ordinary", "free"), ("express", "paying"),
     ])
     paymentType = models.CharField(max_length=99, choices=[
-        ("online", "card"),
-        ("someone", "cash"),
+        ("online", "card"), ("someone", "cash"),
     ])
     totalCost = models.DecimalField(default=0, max_digits=50, decimal_places=2)
     status = models.CharField(max_length=50, blank=True)
@@ -134,27 +127,39 @@ class Order(models.Model):
 
 
 class Payment(models.Model):
-    number = models.PositiveBigIntegerField(unique=True, validators=[
-        MinValueValidator(10000000), MaxValueValidator(99999999)
-    ])
+    """ Model for payments """
+    order = models.ForeignKey(Order, on_delete=models.RESTRICT, related_name="payments")
+    number = models.PositiveBigIntegerField(validators=[
+        MinValueValidator(1000000000000000), MaxValueValidator(9999999999999999)
+    ], unique=True)
     name = models.CharField(max_length=50)
-    month = models.PositiveSmallIntegerField(validators=[payment_month_validator])
+    month = models.PositiveSmallIntegerField(validators=[
+        MinValueValidator(1), MaxValueValidator(12)
+    ])
     year = models.PositiveSmallIntegerField(validators=[
-        MinValueValidator(datetime.now().year), MaxValueValidator(datetime.now().year + 3)
+        MinValueValidator(datetime.now().year),
+        MaxValueValidator(datetime.now().year + 3),
     ])
     code = models.PositiveSmallIntegerField(validators=[
         MinValueValidator(100), MaxValueValidator(999)
     ])
 
 
-# class Sales(models.Model):
-#     price = models.DecimalField(max_digits=50, decimal_places=2)
-#     salePrice = models.DecimalField(max_digits=50, decimal_places=2)
-#     dateFrom = models.DateTimeField(auto_now_add=True)
-#     dateTo = models.DateTimeField()
-#     title = models.CharField(max_length=50)
+class Sale(models.Model):
+    """ Model for sales """
+    price = models.DecimalField(max_digits=50, decimal_places=2)
+    salePrice = models.DecimalField(max_digits=50, decimal_places=2)
+    dateFrom = models.DateTimeField()
+    dateTo = models.DateTimeField()
+    title = models.CharField(max_length=50)
+
+    def __str__(self) -> str:
+        return f"Sale: {self.title!r}"
 
 
-# class SalesImage(models.Model):
-#     sales = models.ForeignKey(Sales, on_delete=models.CASCADE, related_name="images")
-#     image = models.ImageField(upload_to=path_to_img)
+class SaleImage(models.Model):
+    """ Model for sale images """
+    sale = models.ForeignKey(
+        Sale, on_delete=models.CASCADE, related_name="images"
+    )
+    image = models.ImageField(upload_to=path_to_img)
