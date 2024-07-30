@@ -15,9 +15,7 @@ class SideCategorySerializer(serializers.ModelSerializer):
 
     @staticmethod
     def get_image(obj: Category) -> Dict:
-        if obj.image:
-            return {"src": obj.image.url, "alt": obj.image.name}
-        return {}
+        return {"src": obj.image.url, "alt": obj.image.name} if obj.image else {}
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -31,15 +29,13 @@ class CategorySerializer(serializers.ModelSerializer):
 
     @staticmethod
     def get_image(obj: Category) -> Dict:
-        if obj.image:
-            return {"src": obj.image.url, "alt": obj.image.name}
-        return {}
+        return {"src": obj.image.url, "alt": obj.image.name} if obj.image else {}
 
     @staticmethod
     def get_subcategories(obj: Category) -> List:
-        if obj.subcategories:
-            return SideCategorySerializer(obj.subcategories.all(), many=True).data
-        return []
+        return SideCategorySerializer(
+            obj.subcategories.all(), many=True
+        ).data if obj.subcategories else []
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -66,9 +62,7 @@ class ShortProductSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def get_price(obj: Product) -> float:
-        if obj.price:
-            return float(obj.price)
-        return 0.0
+        return float(obj.price) if obj.price else 0
 
     @staticmethod
     def get_date(obj: Product) -> str:
@@ -76,18 +70,15 @@ class ShortProductSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def get_images(obj: Product) -> List:
-        if obj.images:
-            return [
-                {"src": img.image.url, "alt": img.image.name}
-                for img in obj.images.all()
-            ]
-        return []
+        return [
+            {"src": img.image.url, "alt": img.image.name} for img in obj.images.all()
+        ] if obj.images else []
 
     @staticmethod
     def get_tags(obj: Product) -> List:
-        if obj.tags:
-            return [{"id": tag.pk, "name": tag.name} for tag in obj.tags.all()]
-        return []
+        return [
+            {"id": tag.pk, "name": tag.name} for tag in obj.tags.all()
+        ] if obj.tags else []
 
     @staticmethod
     def get_reviews(obj: Product) -> int:
@@ -114,36 +105,38 @@ class FullProductSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def get_price(obj: Product) -> float:
-        return float(obj.price)
+        return float(obj.price) if obj.price else 0
 
     @staticmethod
     def get_date(obj: Product) -> str:
         return obj.date.strftime("%a %b %d %Y %H:%M:%S %z %Z")
 
     @staticmethod
-    def get_category(obj: Product) -> int:
-        return int(obj.category.id)
+    def get_category(obj: Product) -> int | None:
+        return int(obj.category.id) if obj.category else None
 
     @staticmethod
     def get_images(obj: Product) -> List:
         return [
             {"src": img.image.url, "alt": img.image.name} for img in obj.images.all()
-        ]
+        ] if obj.images else []
 
     @staticmethod
     def get_tags(obj: Product) -> List:
-        return TagSerializer(obj.tags.all(), many=True).data
+        return TagSerializer(obj.tags.all(), many=True).data if obj.tags else []
 
     @staticmethod
     def get_reviews(obj: Product) -> List:
-        return ReviewSerializer(obj.reviews.all(), many=True).data
+        return ReviewSerializer(
+            obj.reviews.all(), many=True
+        ).data if obj.reviews else []
 
     @staticmethod
     def get_specifications(obj: Product) -> List:
         return [
             {"name": spec.name, "value": spec.value}
             for spec in obj.specifications.all()
-        ]
+        ] if obj.specifications else []
 
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -174,4 +167,6 @@ class OrderSerializer(serializers.ModelSerializer):
 
     @staticmethod
     def get_products(obj: Order) -> List:
-        return ShortProductSerializer(obj.products.all(), many=True).data
+        return ShortProductSerializer(
+            obj.products.all(), many=True
+        ).data if obj.products else []
