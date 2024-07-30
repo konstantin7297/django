@@ -18,7 +18,7 @@ class Category(models.Model):
 
     title = models.CharField(max_length=50)
     image = models.ImageField(null=True, blank=True, upload_to=path_to_img)
-    subcategories = models.ManyToManyField("self")
+    subcategories = models.ManyToManyField("self", blank=True)
 
     def __str__(self) -> str:
         return f"Category: {self.title!r}"
@@ -68,6 +68,9 @@ class ProductImage(models.Model):
     )
     image = models.ImageField(upload_to=path_to_img)
 
+    def __str__(self) -> str:
+        return f"ProductImage: {self.product!r}"
+
 
 class Specification(models.Model):
     """ Model for product specifications """
@@ -76,6 +79,9 @@ class Specification(models.Model):
     )
     name = models.CharField(max_length=30)
     value = models.CharField(max_length=30)
+
+    def __str__(self) -> str:
+        return f"Specification: {self.product!r}"
 
 
 class Review(models.Model):
@@ -90,6 +96,9 @@ class Review(models.Model):
         MinValueValidator(1), MaxValueValidator(5)
     ])
     date = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self) -> str:
+        return f"Review: {self.product!r}"
 
 
 class Basket(models.Model):
@@ -144,6 +153,9 @@ class Payment(models.Model):
         MinValueValidator(100), MaxValueValidator(999)
     ])
 
+    def __str__(self) -> str:
+        return f"Payment: {self.order!r}"
+
 
 class Sale(models.Model):
     """ Model for sales """
@@ -163,3 +175,6 @@ class SaleImage(models.Model):
         Sale, on_delete=models.CASCADE, related_name="images"
     )
     image = models.ImageField(upload_to=path_to_img)
+
+    def __str__(self) -> str:
+        return f"SaleImage: {self.sale!r}"

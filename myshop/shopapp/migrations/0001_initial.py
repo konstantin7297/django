@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('title', models.CharField(max_length=50)),
                 ('image', models.ImageField(blank=True, null=True, upload_to=shopapp.models.path_to_img)),
-                ('subcategories', models.ManyToManyField(to='shopapp.category')),
+                ('subcategories', models.ManyToManyField(to='shopapp.category', blank=True)),
             ],
             options={
                 'verbose_name': 'category',

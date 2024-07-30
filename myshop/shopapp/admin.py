@@ -1,6 +1,18 @@
 from django.contrib import admin
 
-from .models import Category, Tag, Product, ProductImage, Specification, Review, Basket
+from .models import (
+    Category,
+    Tag,
+    Product,
+    ProductImage,
+    Specification,
+    Review,
+    Basket,
+    Order,
+    Payment,
+    Sale,
+    SaleImage,
+)
 
 
 @admin.register(Category)
@@ -9,21 +21,15 @@ class CategoryAdmin(admin.ModelAdmin):
     list_display_links = ("id", "title",)
     ordering = ("id", "title",)
     search_fields = ("title",)
-    verbose_name = "Category"
     verbose_name_plural = "Categories"
     fieldsets = [
         (None, {
             "description": "Main information of the category",
             "fields": ("title",),
         }),
-        ("image", {
-            "description": "Image of the category",
-            "fields": ("image",),
-            "classes": ("collapse",),
-        }),
-        ("Subcategories", {
-            "description": "Subcategories of the category",
-            "fields": ("subcategories",),
+        ("Relationships", {
+            "description": "Relationships information of the category",
+            "fields": ("image", "subcategories"),
             "classes": ("collapse",),
         }),
     ]
@@ -43,8 +49,8 @@ class TagAdmin(admin.ModelAdmin):
             "description": "Main information of the tag",
             "fields": ("name",),
         }),
-        ("Category", {
-            "description": "Category of the tag",
+        ("Relationships", {
+            "description": "Relationships information of the tag",
             "fields": ("category",),
             "classes": ("collapse",),
         }),
@@ -57,7 +63,8 @@ class TagAdmin(admin.ModelAdmin):
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = (
-        "id", "title", "price", "count", "description", "freeDelivery", "limited"
+        "id", "title", "price", "count", "description", "freeDelivery", "limited",
+        "date"
     )
     list_display_links = ("id", "title", "description")
     ordering = ("id", "title")
@@ -71,7 +78,7 @@ class ProductAdmin(admin.ModelAdmin):
         }),
         ("Integers", {
             "description": "Side information of the product",
-            "fields": ("price", "count", "date", "rating"),
+            "fields": ("price", "count", "rating"),
         }),
         ("Relationships", {
             "description": "Relationships information of the product",
@@ -80,8 +87,13 @@ class ProductAdmin(admin.ModelAdmin):
         }),
     ]
 
-    def get_queryset(self, request):  # TODO: images, specifications, reviews, baskets
-        return Product.objects.select_related("category").prefetch_related("tags")
+    def get_queryset(self, request):
+        return (
+            Product.objects
+            .select_related("category")
+            .prefetch_related("tags")
+            .filter(sale=False)
+        )
 
 
 @admin.register(ProductImage)
@@ -94,7 +106,7 @@ class ProductImageAdmin(admin.ModelAdmin):
         (None, {
             "description": "Main information of the product image",
             "fields": ("product", "image"),
-        })
+        }),
     ]
 
     def get_queryset(self, request):
@@ -104,14 +116,14 @@ class ProductImageAdmin(admin.ModelAdmin):
 @admin.register(Specification)
 class SpecificationAdmin(admin.ModelAdmin):
     list_display = ("id", "product", "name", "value")
-    list_display_links = ("id", "product", "name")
+    list_display_links = ("id", "product", "name", "value")
     ordering = ("id", "product", "name")
     search_fields = ("id", "product", "name", "value")
     fieldsets = [
         (None, {
             "description": "Main information of the product specification",
             "fields": ("product", "name", "value"),
-        })
+        }),
     ]
 
     def get_queryset(self, request):
@@ -120,14 +132,14 @@ class SpecificationAdmin(admin.ModelAdmin):
 
 @admin.register(Review)
 class ReviewAdmin(admin.ModelAdmin):
-    list_display = ("id", "product", "author", "email", "text", "rate")
-    list_display_links = ("id", "product", "author", "email")
-    ordering = ("id", "product")
-    search_fields = ("id", "product", "author", "email", "text")
+    list_display = ("id", "author", "email", "text", "rate", "product", "date")
+    list_display_links = ("id", "author", "email")
+    ordering = ("id", "date")
+    search_fields = ("id", "author", "email", "text", "rate")
     fieldsets = [
         (None, {
             "description": "Main information of the product review",
-            "fields": ("product", "author", "email", "text", "rate", "date"),
+            "fields": ("product", "author", "email", "text", "rate"),
         })
     ]
 
@@ -152,15 +164,77 @@ class BasketAdmin(admin.ModelAdmin):
         return Basket.objects.select_related("product")
 
 
-# @admin.register(Payment)
-# class PaymentAdmin(admin.ModelAdmin):
-#     list_display = ("number", "name", "month", "year", "code")
-#     list_display_links = ("number", "name")
-#     ordering = ("number", "name")
-#     search_fields = ("number", "name")
-#     fieldsets = [
-#         ("Payment", {
-#             "description": "Payment information",
-#             "fields": ("number", "name", "month", "year", "code"),
-#         })
-#     ]
+@admin.register(Order)
+class OrderAdmin(admin.ModelAdmin):
+    list_display = (
+        "id", "fullName", "email", "phone", "deliveryType", "paymentType", "totalCost",
+        "status", "createdAt"
+    )
+    list_display_links = ("id", "fullName", "email", "phone")
+    ordering = ("id", "createdAt")
+    search_fields = ("id", "fullName", "email", "phone", "totalCost")
+    fieldsets = [
+        (None, {
+            "description": "Main information of the order",
+            "fields": (
+                "fullName", "email", "phone", "deliveryType", "paymentType",
+                "totalCost", "status", "city", "address"
+            ),
+        }),
+        ("Relationships", {
+            "description": "Relationships information of the order",
+            "fields": ("products",),
+            "classes": ("collapse",),
+        }),
+    ]
+
+    def get_queryset(self, request):
+        return Order.objects.prefetch_related("products")
+
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    list_display = ("id", "number", "name", "month", "year", "code", "order")
+    list_display_links = ("id", "number", "name")
+    ordering = ("id", "number", "name")
+    search_fields = ("number", "name", "month", "year")
+    fieldsets = [
+        (None, {
+            "description": "Payment information",
+            "fields": ("number", "name", "month", "year", "code", "order"),
+        }),
+    ]
+
+    def get_queryset(self, request):
+        return Payment.objects.select_related("order")
+
+
+@admin.register(Sale)
+class SaleAdmin(admin.ModelAdmin):
+    list_display = ("id", "title", "price", "salePrice", "dateFrom", "dateTo")
+    list_display_links = ("id", "title")
+    ordering = ("id", "dateFrom", "dateTo")
+    search_fields = ("id", "title", "price", "salePrice")
+    fieldsets = [
+        (None, {
+            "description": "Main information of the sale",
+            "fields": ("title", "price", "salePrice"),
+        }),
+    ]
+
+
+@admin.register(SaleImage)
+class SaleImageAdmin(admin.ModelAdmin):
+    list_display = ("id", "sale", "image")
+    list_display_links = ("id", "sale")
+    ordering = ("id", "sale")
+    search_fields = ("id", "sale")
+    fieldsets = [
+        (None, {
+            "description": "Main information of the sale image",
+            "fields": ("sale", "image"),
+        }),
+    ]
+
+    def get_queryset(self, request):
+        return SaleImage.objects.select_related("sale")
