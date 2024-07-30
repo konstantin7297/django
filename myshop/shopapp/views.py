@@ -293,12 +293,23 @@ class PaymentView(APIView, LoginRequiredMixin):
 
 
 class TagsView(ListAPIView):
-    """ View for listing all tags by category """
-    queryset = Tag.objects
+    """ View for listing all tags """
+    queryset = Tag.objects.select_related("category")
     serializer_class = TagSerializer
 
     def get(self, request: Request, *args, **kwargs) -> Response:
         return Response(self.serializer_class(self.get_queryset(), many=True).data)
+
+
+class TagsByIdView(ListAPIView):
+    """ View for listing all tags by id category """
+    queryset = Tag.objects.select_related("category")
+    serializer_class = TagSerializer
+
+    def get(self, request: Request, *args, **kwargs) -> Response:
+        return Response(self.serializer_class(
+            self.get_queryset().filter(category__id=kwargs.get("category")), many=True
+        ).data)
 
 
 class ProductByIdView(APIView):
