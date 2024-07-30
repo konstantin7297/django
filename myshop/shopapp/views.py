@@ -11,7 +11,9 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Category, Tag, Product, ProductImage, Review, Basket, Order, Payment
+from .models import (
+    Category, Tag, Product, ProductImage, Review, Basket, Order, Payment, Sale
+)
 from .serializers import (
     CategorySerializer,
     TagSerializer,
@@ -19,6 +21,7 @@ from .serializers import (
     ReviewSerializer,
     ShortProductSerializer,
     OrderSerializer,
+    SaleSerializer,
 )
 
 
@@ -106,12 +109,20 @@ class ProductsLimitedView(ListAPIView):
 
 class SalesView(ListAPIView):  # TODO
     """ View for listing all sales orders """
-    pass
+    queryset = Sale.objects.prefetch_related("images")
+    serializer_class = SaleSerializer
+
+    def get(self, request: Request, *args, **kwargs) -> Response:
+        return Response(self.serializer_class(self.get_queryset(), many=True).data)
 
 
 class BannersView(ListAPIView):  # TODO
     """ View for listing all banners """
-    pass
+    queryset = Product.objects
+    serializer_class = ShortProductSerializer
+
+    def get(self, request: Request, *args, **kwargs) -> Response:
+        return Response(self.serializer_class(self.get_queryset(), many=True).data)
 
 
 class BasketView(APIView):

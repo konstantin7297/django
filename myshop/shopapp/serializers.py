@@ -2,7 +2,7 @@ from typing import Dict, List
 
 from rest_framework import serializers
 
-from .models import Category, Tag, Product, Review, Order
+from .models import Category, Tag, Product, Review, Order, Sale
 
 
 class SideCategorySerializer(serializers.ModelSerializer):
@@ -170,3 +170,18 @@ class OrderSerializer(serializers.ModelSerializer):
         return ShortProductSerializer(
             obj.products.all(), many=True
         ).data if obj.products else []
+
+
+class SaleSerializer(serializers.ModelSerializer):
+    """ Serializer for sale model """
+    images = serializers.SerializerMethodField(method_name='get_images')
+
+    class Meta:
+        model = Sale
+        fields = "__all__"
+
+    @staticmethod
+    def get_images(obj: Sale) -> List:
+        return [
+            {"src": img.image.url, "alt": img.image.name} for img in obj.images.all()
+        ] if obj.images else []
