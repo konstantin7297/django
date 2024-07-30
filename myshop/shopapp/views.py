@@ -1,10 +1,9 @@
+import os
 from math import ceil
 from decimal import Decimal
-from copy import copy
 
 from django.db import transaction
 from django.db.models import Q, Avg, F, Sum
-from django.http import HttpRequest
 from django.contrib.auth.mixins import LoginRequiredMixin
 from rest_framework import status
 from rest_framework.generics import ListAPIView
@@ -12,7 +11,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Category, Tag, Product, ProductImage, Review, Basket, Order
+from .models import Category, Tag, Product, ProductImage, Review, Basket, Order, Payment
 from .serializers import (
     CategorySerializer,
     TagSerializer,
@@ -118,7 +117,7 @@ class BannersView(ListAPIView):  # TODO
 class BasketView(APIView):
     """ View for basket operations """
     @staticmethod
-    def get(request: Request, *args, **kwargs):
+    def get(request: Request, *args, **kwargs) -> Response:
         basket_products: list = list()
 
         for basket in Basket.objects.select_related(
@@ -131,7 +130,7 @@ class BasketView(APIView):
         return Response(ShortProductSerializer(basket_products, many=True).data)
 
     @transaction.atomic
-    def post(self, request: Request, *args, **kwargs):
+    def post(self, request: Request, *args, **kwargs) -> Response:
         session = get_session(request)
 
         count = request.data.get("count", 1)
@@ -164,7 +163,7 @@ class BasketView(APIView):
         return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @transaction.atomic
-    def delete(self, request: Request, *args, **kwargs):
+    def delete(self, request: Request, *args, **kwargs) -> Response:
         session = get_session(request)
 
         count = request.data.get("count", 1)
@@ -197,13 +196,13 @@ class BasketView(APIView):
 class OrdersView(APIView):
     """ View for main operation with orders """
     @staticmethod
-    def get(request, *args, **kwargs):
+    def get(request: Request, *args, **kwargs) -> Response:
         orders = Order.objects.prefetch_related("products").all()
         return Response(OrderSerializer(orders, many=True).data)
 
     @staticmethod
     @transaction.atomic
-    def post(request: Request, *args, **kwargs):
+    def post(request: Request, *args, **kwargs) -> Response:
         order = Order.objects.create()
         order.save()
 
@@ -236,15 +235,27 @@ class OrdersView(APIView):
 class OrdersByIdView(APIView):
     """ View for getting and updating orders by id """
     @staticmethod
-    def get(request, *args, **kwargs):
+    def get(request: Request, *args, **kwargs) -> Response:
         order = Order.objects.prefetch_related("products").get(pk=kwargs.get("id"))
         return Response(OrderSerializer(order).data)
 
     @staticmethod
     @transaction.atomic
-    def post(request, *args, **kwargs):
+    def post(request: Request, *args, **kwargs) -> Response:
         order = Order.objects.get(pk=kwargs.get("id"))
         data = request.data
+
+        if data.get("deliveryType") == "ordinary":
+            if float(data.get("totalCost")) < float(os.getenv("delivery_check", 2000)):
+                data["totalCost"] = float(data["totalCost"]) + int(
+                    os.getenv("delivery_ordinary", 200)
+                )
+
+        elif data.get("deliveryType") == "express":
+            data["totalCost"] = float(data["totalCost"]) + int(
+                os.getenv("delivery_express", 500)
+            )
+
         serializer = OrderSerializer(data=data, instance=order)
 
         if serializer.is_valid():
@@ -255,9 +266,19 @@ class OrdersByIdView(APIView):
 
 class PaymentView(APIView, LoginRequiredMixin):
     """ View for payments """
+    @staticmethod
     @transaction.atomic
-    def post(self, request: Request, *args, **kwargs) -> Response:
-        pass  # TODO: В ТЗ инструкция.
+    def post(request: Request, *args, **kwargs) -> Response:
+        order = Order.objects.get(pk=kwargs.get("id"))
+        Payment.objects.create(
+            order=order,
+            number=int(request.data.get("number")),
+            name=request.data.get("name"),
+            month=int(request.data.get("month")),
+            year=int(request.data.get("year")),
+            code=int(request.data.get("code")),
+        )
+        return Response(status=status.HTTP_200_OK)
 
 
 class TagsView(ListAPIView):
@@ -286,9 +307,10 @@ class ProductReviewView(APIView):
     """ View for posting reviews for a product """
     @staticmethod
     @transaction.atomic
-    def post(request: Request, *args, **kwargs):
+    def post(request: Request, *args, **kwargs) -> Response:
         product = Product.objects.get(pk=kwargs.get("id"))
         serializer = ReviewSerializer(data=request.data)
+
         if serializer.is_valid():
             serializer.save(product=product)
 
