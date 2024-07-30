@@ -9,12 +9,11 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args, **options):
         self.stdout.write("Creating tags")
-        count: int = 10
+        count: int = 100
 
         categories = Category.objects.all()
         tags = [
-            Tag(category=categories[i - 1], name=f"tag{i}")
-            for i in range(1, count)
+            Tag(category=categories[i - 1], name=f"tag{i}") for i in range(1, count)
         ]
         Tag.objects.bulk_create(tags)
 

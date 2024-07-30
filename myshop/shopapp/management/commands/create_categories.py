@@ -11,11 +11,10 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, *args, **options):
         self.stdout.write("Creating categories")
-        count: int = 10
+        count: int = 100
 
         categories = [
-            Category(title=f"category{i}", image="my_img.jpg")
-            for i in range(1, count)
+            Category(title=f"category{i}", image="my_img.jpg") for i in range(1, count)
         ]
         Category.objects.bulk_create(categories)
         categories = Category.objects.all()
