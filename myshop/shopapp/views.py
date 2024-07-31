@@ -107,18 +107,35 @@ class ProductsLimitedView(ListAPIView):
         return Response(self.serializer_class(self.get_queryset(), many=True).data)
 
 
-class SalesView(ListAPIView):  # TODO
+class SalesView(ListAPIView):
     """ View for listing all sales orders """
-    queryset = Sale.objects.prefetch_related("images")
-    serializer_class = SaleSerializer
+    queryset = Product.objects.prefetch_related(
+        "tags", "images"
+    ).select_related("category").filter(sale=True)
+    serializer_class = ShortProductSerializer
 
     def get(self, request: Request, *args, **kwargs) -> Response:
-        return Response(self.serializer_class(self.get_queryset(), many=True).data)
+        data = request.query_params.dict()
+        page = int(data.get("currentPage", 1))
+        limit = int(data.get("limit", 20))
+
+        start_row = max((page - 1) * limit, 1)
+        end_row = page * limit + 1
+
+        result = self.get_queryset().order_by("?")[start_row:end_row]
+
+        return Response({
+            "items": self.serializer_class(result, many=True).data,
+            "currentPage": page,
+            "lastPage": ceil(len(result) / limit)
+        })
 
 
-class BannersView(ListAPIView):  # TODO
+class BannersView(ListAPIView):
     """ View for listing all banners """
-    queryset = Product.objects
+    queryset = Product.objects.prefetch_related(
+        "tags", "images"
+    ).select_related("category").filter(sale=False).order_by("?")
     serializer_class = ShortProductSerializer
 
     def get(self, request: Request, *args, **kwargs) -> Response:
@@ -271,7 +288,7 @@ class OrdersByIdView(APIView):
 
         if serializer.is_valid():
             serializer.update(instance=order, validated_data=serializer.validated_data)
-            return Response(status=status.HTTP_200_OK)
+            return Response({"orderId": order.id})
         return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
