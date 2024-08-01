@@ -116,9 +116,9 @@ class Basket(models.Model):
 class Order(models.Model):
     """ Model for orders """
     createdAt = models.DateTimeField(auto_now_add=True)
-    fullName = models.CharField(max_length=50)
+    fullName = models.CharField(max_length=50, blank=True, null=True)
     email = models.EmailField(max_length=50)
-    phone = models.CharField(max_length=20)
+    phone = models.CharField(max_length=20, blank=True, null=True)
     deliveryType = models.CharField(max_length=99, choices=[
         ("ordinary", "free"), ("express", "paying"),
     ])
@@ -127,8 +127,8 @@ class Order(models.Model):
     ])
     totalCost = models.DecimalField(default=0, max_digits=50, decimal_places=2)
     status = models.CharField(max_length=50, blank=True)
-    city = models.CharField(max_length=50)
-    address = models.CharField(max_length=50)
+    city = models.CharField(max_length=50, blank=True, null=True)
+    address = models.CharField(max_length=50, blank=True, null=True)
     products = models.ManyToManyField(Product, related_name="orders")
 
     def __str__(self) -> str:
