@@ -274,15 +274,11 @@ class OrdersByIdView(APIView):
         data = request.data
 
         if data.get("deliveryType") == "ordinary":
-            if float(data.get("totalCost")) < float(os.getenv("delivery_check", 2000)):
-                data["totalCost"] = float(data["totalCost"]) + int(
-                    os.getenv("delivery_ordinary", 200)
-                )
+            if float(data.get("totalCost")) < 2000:
+                data["totalCost"] = float(data["totalCost"]) + 200
 
         elif data.get("deliveryType") == "express":
-            data["totalCost"] = float(data["totalCost"]) + int(
-                os.getenv("delivery_express", 500)
-            )
+            data["totalCost"] = float(data["totalCost"]) + 500
 
         serializer = OrderSerializer(data=data, instance=order)
 
